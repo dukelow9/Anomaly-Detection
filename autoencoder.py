@@ -1,49 +1,52 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Dense
+from tensorflow.keras.layers import Input, Dense, Dropout
 from tensorflow.keras.optimizers import Adam
 
-data = pd.read_excel("C:\\Users\\User\\OneDrive\\Documents\\Notes\\Year 3\\GP\\data1_AED.xlsx")
-dates = data['Date']
-spotRates = data['Spot Rate']
+data = pd.read_excel("C:\\Users\\User\\OneDrive\\Documents\\Notes\\Year 3\\GP\\data1.xlsx")
+currency = 'GBP'
+filteredData = data[data['Currency'] == currency]
+dates = filteredData['Date']
+spotRates = filteredData['Spot Rate']
 
-maxSpotRate = max(spotRates)
-spotRates = spotRates / maxSpotRate
+scaler = MinMaxScaler()
+spotRates_normalized = scaler.fit_transform(np.array(spotRates).reshape(-1, 1))
 
 inputLayer = Input(shape=(1,))
 encoded = Dense(128, activation='relu')(inputLayer)
+encoded = Dropout(0.2, name='dropout_layer')(encoded)
 decoded = Dense(1, activation='linear')(encoded)
 
 autoencoder = Model(inputLayer, decoded)
 autoencoder.compile(optimizer=Adam(learning_rate=0.001), loss='mean_squared_error')
-autoencoder.fit(spotRates, spotRates, epochs=50, batch_size=256, shuffle=False, validation_split=0.2)
-encodedSpotRates = autoencoder.predict(spotRates)
+autoencoder.summary()
+autoencoder.fit(spotRates_normalized, spotRates_normalized, epochs=150, batch_size=256, shuffle=False, validation_split=0.2)
 
-reconstructionErrors = []
-for i in range(len(spotRates)):
-    error = np.mean(np.square(spotRates[i] - encodedSpotRates[i].flatten()))
-    reconstructionErrors.append(error)
+encodedSpotRates_normalized = autoencoder.predict(spotRates_normalized)
+encodedSpotRates = scaler.inverse_transform(encodedSpotRates_normalized)
 
-threshold = 1e-9
-anomalies = np.atleast_1d(np.array(reconstructionErrors) > threshold).nonzero()
+reconstructionErrors = np.mean(np.square(spotRates_normalized - encodedSpotRates_normalized), axis=1)
 
-%matplotlib notebook
+mean_error = np.mean(reconstructionErrors)
+threshold = mean_error + 2 * np.std(reconstructionErrors)
+anomalies = np.where(reconstructionErrors > threshold)[0]
+
 plt.figure(figsize=(12, 6))
-plt.plot(dates, spot_rates * maxSpotRate, label='Actual Spot Rates', color='navy')
-plt.plot(dates, encodedSpotRates * maxSpotRate, label='Predicted Spot Rates', color='yellowgreen')
+plt.plot(dates, spotRates, label='Actual Spot Rates', color='navy')
+plt.plot(dates, encodedSpotRates, label='Predicted Spot Rates', color='yellowgreen', linewidth=0.7)
 
-anomalyIndices = anomalies[0]
-anomalyDates = [dates[i] for i in anomalyIndices]
-anomalyVals = [spot_rates[i] * maxSpotRate for i in anomalyIndices]
+anomalyDates = dates.iloc[anomalies]
+anomalyVals = pd.DataFrame(spotRates).values[anomalies, 0]
 plt.scatter(anomalyDates, anomalyVals, label='Anomalies', color='red', marker='o')
 
 plt.xlabel('Date')
 plt.ylabel('Spot Rate')
 plt.legend()
-plt.title('AED Spot Rates')
+plt.title(f'Spot Rate Anomaly Detection for {currency}')
 plt.grid()
 plt.show()
 
-print("Number of anomalies:", len(anomalies[0]))
+print("Number of anomalies:", len(anomalies))
