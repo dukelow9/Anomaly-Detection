@@ -7,6 +7,16 @@ import tensorflow as tf
 from tensorflow.keras.layers import Input, Dense, Lambda, Dropout
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import EarlyStopping
+
+data = pd.read_excel("C:\\Users\\User\\OneDrive\\Documents\\Notes\\Year 3\\GP\\data1.xlsx")
+currency = 'GBP'
+filteredData = data[data['Currency'] == currency]
+dates = filteredData['Date']
+spotRates = filteredData['Spot Rate']
+
+scaler = MinMaxScaler()
+spotRatesNormalized = scaler.fit_transform(np.array(spotRates).reshape(-1, 1))
 
 def sampling(args):
     zMean, zLogVar = args
@@ -23,8 +33,12 @@ class CustomVariationalLayer(tf.keras.layers.Layer):
 
     def vaeLoss(self, x, xDecodedMean):
         xentLoss = tf.reduce_mean(tf.square(x - xDecodedMean))
-        klLoss = -0.5 * tf.reduce_mean(1 + self.zLogVar - tf.square(self.zMean) - tf.exp(self.zLogVar))
-        return xentLoss + klLoss
+
+        if self.zMean is not None and self.zLogVar is not None:
+            klLoss = -0.5 * tf.reduce_mean(1 + self.zLogVar - tf.square(self.zMean) - tf.exp(self.zLogVar))
+            return xentLoss + klLoss
+        else:
+            return xentLoss
 
     def call(self, inputs):
         x, zMean, zLogVar = inputs
@@ -37,15 +51,13 @@ class CustomVariationalLayer(tf.keras.layers.Layer):
 
     def computeOutputShape(self, inputShape):
         return inputShape
+    
+earlyStopping = EarlyStopping(
+    monitor='val_loss',
+    patience=25,
+    restore_best_weights=True
+)
 
-data = pd.read_excel("C:\\Users\\User\\OneDrive\\Documents\\Notes\\Year 3\\GP\\data1.xlsx")
-currency = 'GBP'
-filteredData = data[data['Currency'] == currency]
-dates = filteredData['Date']
-spotRates = filteredData['Spot Rate']
-
-scaler = MinMaxScaler()
-spotRatesNormalized = scaler.fit_transform(np.array(spotRates).reshape(-1, 1))
 
 inputLayer = Input(shape=(1,))
 encoded = Dense(128, activation='relu')(inputLayer)
@@ -59,15 +71,17 @@ decoded = Dense(1, activation='linear')(z)
 
 lossLayer = CustomVariationalLayer()([inputLayer, zMean, zLogVar])
 
-vae = Model(inputLayer, lossLayer)
-vae.compile(optimizer=Adam(learning_rate=0.001), loss=None)
+vae = Model(inputLayer, decoded)
+vae.compile(optimizer=Adam(learning_rate=0.001), loss=CustomVariationalLayer().vaeLoss)
 vae.summary()
 startTime = time.time()
-history = vae.fit(spotRatesNormalized, epochs=150, batch_size=256, shuffle=False, validation_data=(spotRatesNormalized, None))
+history = vae.fit(spotRatesNormalized, spotRatesNormalized, epochs=1000, batch_size=256, shuffle=False, 
+                  validation_data=(spotRatesNormalized, spotRatesNormalized), callbacks=earlyStopping)
 endTime = time.time()
 
 encodedSpotRatesNormalized = vae.predict(spotRatesNormalized)
-encodedSpotRates = scaler.inverse_transform(encodedSpotRatesNormalized)
+decodedSpotRatesNormalized = vae.predict(spotRatesNormalized)
+decodedSpotRates = scaler.inverse_transform(decodedSpotRatesNormalized)
 
 reconstructionErrors = np.mean(np.square(spotRatesNormalized - encodedSpotRatesNormalized), axis=1)
 
@@ -80,7 +94,7 @@ print(f"Training Time: {elapsedTime} seconds")
 
 plt.figure(figsize=(12, 6))
 plt.plot(dates, spotRates, label='Actual Spot Rates', color='navy')
-plt.plot(dates, encodedSpotRates, label='Predicted Spot Rates', color='yellowgreen', linewidth=0.7)
+plt.plot(dates, decodedSpotRates, label='Predicted Spot Rates', color='yellowgreen', linewidth=0.7)
 
 anomalyDates = dates.iloc[anomalies]
 anomalyVals = pd.DataFrame(spotRates).values[anomalies, 0]
