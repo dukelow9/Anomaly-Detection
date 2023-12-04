@@ -47,3 +47,28 @@ plt.xlabel("date number")
 plt.title(str(currency) +" "+ str(Rate))
 plt.plot(X)
 plt.show
+
+
+STANDARD = np.std(X)
+MEAN = np.mean(X)
+Anom = []
+for i in range(len(X)):
+    if X[i] > MEAN+(2*STANDARD):
+        Anom.append(Y[i])
+    if X[i] < MEAN-(2*STANDARD):
+        Anom.append(Y[i])
+    if X[i] == 0:
+        Anom.append(Y[i])
+#print(Anom)
+
+plt.ylabel("log return")
+plt.xlabel("date number")
+plt.title(str(currency) +" "+ str(Rate))
+Position = []
+Y_dot = []
+for i in range (len(Anom)):
+    Position.append(Y.index(Anom[i]))
+    Y_dot.append(X[Position[i]])
+plt.scatter(Position,Y_dot,marker = 'x',color='black')
+plt.plot(X)
+plt.show
