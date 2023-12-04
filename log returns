@@ -1,0 +1,49 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import math
+#f = open("/Users/phbcat/Downloads/1331_1453_fx_tenor_curves_lboro_data_20231011.txt", "r")
+f = open("/Users/phbcat/Downloads/1128_1419_fx_tenor_curves_lboro_data_20231011.txt", "r")
+currency = "GBP"
+Rate = "5Y Rate"
+X = []
+Y = []
+current = f.readline()
+list = current.split(",")
+for i in range(len(list)):
+    if list[i]==Rate:
+        value = i
+
+current = f.readline()
+list_previous = current.split(",")
+
+for x in f:
+    #print(f.readline())      
+    current = f.readline()
+    list_current = current.split(",")
+    #print(current)
+    if list_current[3]==currency:
+        if list_previous[3]==currency:
+            Current_value = float(list_current[value])
+            previous_value = float(list_previous[value])
+            Date = list_current[1]
+            #Date_list = Date.split("-")
+            #for i in range(len(Months)):
+            #    if Months[i]==Date_list[1]:
+            #        Date_list[1] = i
+            X.append(math.log(Current_value/previous_value))            
+            Y.append(Date)
+            #print(Date)
+    #A += 1
+    #A_list.append(A)
+    list_previous = list_current
+    #print(A)
+#print(Y)
+#A+=1
+#print(A)
+#print(A_list)
+#plt.plot(Y,X)
+plt.ylabel("log return")
+plt.xlabel("date number")
+plt.title(str(currency) +" "+ str(Rate))
+plt.plot(X)
+plt.show
