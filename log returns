@@ -72,3 +72,12 @@ for i in range (len(Anom)):
 plt.scatter(Position,Y_dot,marker = 'x',color='black')
 plt.plot(X)
 plt.show
+
+
+plt.hist(X)
+plt.show
+
+with open('/Users/phbcat/Downloads/Anoms.csv', 'w', newline='') as file:
+    writer = csv.writer(file)
+    for i in range (len(Anom)):
+            writer.writerow(str(Anom[i]))
