@@ -81,3 +81,75 @@ with open('/Users/phbcat/Downloads/Anoms.csv', 'w', newline='') as file:
     writer = csv.writer(file)
     for i in range (len(Anom)):
             writer.writerow(str(Anom[i]))
+
+Anom = []
+Sliding_window = 100
+for i in range(len(Y_value)-Sliding_window):
+    Window = []
+    for j in range(Sliding_window):
+        Window.append(Y_value[i+j])
+    STANDARD = np.std(Window)
+    MEAN = np.mean(Window)
+    if Y_value[i+Sliding_window] > MEAN+(2*STANDARD):
+        Anom.append(Y[i+Sliding_window])
+    if Y_value[i+Sliding_window] < MEAN-(2*STANDARD):
+        Anom.append(Y[i+Sliding_window])
+    if Y_value[i+Sliding_window] == 0:
+        Anom.append(Y[i+Sliding_window])
+    #plt.axhline(y = MEAN+(2*STANDARD), color = 'b', linestyle = '-', xmin = i, xmax = i+Sliding_window)
+    #plt.axhline(y = MEAN-(2*STANDARD), color = 'b', linestyle = '-', xmin = i, xmax = i+Sliding_window)
+    plt.scatter(i+Sliding_window,MEAN+(2*STANDARD),marker = 's',color='green')
+    plt.scatter(i+Sliding_window,MEAN-(2*STANDARD),marker = 's',color='green')
+
+print(Anom)
+
+plt.ylabel("value")
+plt.xlabel("date number")
+plt.title(str(currency) +" "+ str(Rate))
+Position = []
+Y_dot = []
+for i in range (len(Anom)):
+    Position.append(Y.index(Anom[i]))
+    Y_dot.append(Y_value[Position[i]])
+plt.scatter(Position,Y_dot,marker = 'x',color='black')
+plt.plot(Y_value)
+#plt.axhline(y = MEAN, color = 'r', linestyle = '-')
+#plt.axhline(y = MEAN+(2*STANDARD), color = 'b', linestyle = '-')
+#plt.axhline(y = MEAN-(2*STANDARD), color = 'b', linestyle = '-')
+plt.show
+
+
+Anom = []
+Sliding_window = 100
+for i in range(len(Y_value)-Sliding_window):
+    Window = []
+    for j in range(Sliding_window):
+        Window.append(X[i+j])
+    STANDARD = np.std(Window)
+    MEAN = np.mean(Window)
+    if X[i+Sliding_window] > MEAN+(2*STANDARD):
+        Anom.append(Y[i+Sliding_window])
+    if X[i+Sliding_window] < MEAN-(2*STANDARD):
+        Anom.append(Y[i+Sliding_window])
+    if X[i+Sliding_window] == 0:
+        Anom.append(Y[i+Sliding_window])
+    #plt.axhline(y = MEAN+(2*STANDARD), color = 'b', linestyle = '-', xmin = i, xmax = i+Sliding_window)
+    #plt.axhline(y = MEAN-(2*STANDARD), color = 'b', linestyle = '-', xmin = i, xmax = i+Sliding_window)
+    plt.scatter(i+Sliding_window,MEAN+(2*STANDARD),marker = 's',color='green')
+    plt.scatter(i+Sliding_window,MEAN-(2*STANDARD),marker = 's',color='green')
+print(Anom)
+
+plt.ylabel("Log return")
+plt.xlabel("date number")
+plt.title(str(currency) +" "+ str(Rate))
+Position = []
+Y_dot = []
+for i in range (len(Anom)):
+    Position.append(Y.index(Anom[i]))
+    Y_dot.append(X[Position[i]])
+plt.scatter(Position,Y_dot,marker = 'x',color='black')
+plt.plot(X)
+#plt.axhline(y = MEAN, color = 'r', linestyle = '-')
+#plt.axhline(y = MEAN+(2*STANDARD), color = 'b', linestyle = '-')
+#plt.axhline(y = MEAN-(2*STANDARD), color = 'b', linestyle = '-')
+plt.show
