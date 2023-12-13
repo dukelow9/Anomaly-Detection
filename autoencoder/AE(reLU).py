@@ -12,59 +12,66 @@ data = pd.read_excel("C:\\Users\\User\\OneDrive\\Documents\\Notes\\Year 3\\GP\\d
 currency = 'GBP'
 filteredData = data[data['Currency'] == currency]
 dates = filteredData['Date']
-spotRates = filteredData['Spot Rate']
+rates = filteredData.loc[:, 'Spot Rate':'10Y Rate']
+
+logReturns = np.log(rates / rates.shift(1)).dropna()
 
 scaler = MinMaxScaler()
-spotRatesNormalized = scaler.fit_transform(np.array(spotRates).reshape(-1, 1))
+logReturnsNormalized = scaler.fit_transform(logReturns)
 
-earlyStopping = EarlyStopping(
+inputDim = logReturnsNormalized.shape[1]
+encodingDim = 4
+inputLayer = Input(shape=(inputDim,))
+encoded = Dense(encodingDim, activation='relu')(inputLayer)
+encoded = Dropout(0.02, name='dropout_layer')(encoded)
+decoded = Dense(inputDim, activation='sigmoid')(encoded)
+
+autoencoder = Model(inputLayer, decoded)
+autoencoder.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
+autoencoder.summary()
+
+earlyStop = EarlyStopping(
     monitor='val_loss',
-    patience=45,
+    patience=50,
     restore_best_weights=True
 )
 
-inputLayer = Input(shape=(1,))
-encoded = Dense(128, activation='relu')(inputLayer)
-encoded = Dropout(0.2, name='dropout_layer')(encoded)
-decoded = Dense(1, activation='linear')(encoded)
-
-autoencoder = Model(inputLayer, decoded)
-autoencoder.compile(optimizer=Adam(learning_rate=0.001), loss='mean_squared_error')
-autoencoder.summary()
 startTime = time.time()
-history = autoencoder.fit(spotRatesNormalized, spotRatesNormalized, epochs=1000, batch_size=256, shuffle=False,
-                          validation_split=0.2, callbacks=earlyStopping)
-endTime = time.time()
+history = autoencoder.fit(logReturnsNormalized, logReturnsNormalized, epochs=1000, batch_size=256, shuffle=False,
+                          validation_split=0.2, callbacks=earlyStop)
+endTIme = time.time()
 
-encodedspotRatesNormalized = autoencoder.predict(spotRatesNormalized)
-encodedSpotRates = scaler.inverse_transform(encodedspotRatesNormalized)
+encodedLogReturnsNormalized = autoencoder.predict(logReturnsNormalized)
+encodedLogReturns = scaler.inverse_transform(encodedLogReturnsNormalized)
 
-reconstructionErrors = np.mean(np.square(spotRatesNormalized - encodedspotRatesNormalized), axis=1)
+reconstructionErrors = np.mean(np.square(logReturnsNormalized - encodedLogReturnsNormalized), axis=1)
 
-meanError = np.mean(reconstructionErrors)
-threshold = meanError + 2 * np.std(reconstructionErrors)
+mean_error = np.mean(reconstructionErrors)
+threshold = mean_error + 2 * np.std(reconstructionErrors)
 anomalies = np.where(reconstructionErrors > threshold)[0]
 
-elapsedTime = endTime - startTime
+elapsedTime = endTIme - startTime
 print(f"Training Time: {elapsedTime} seconds")
 
-plt.figure(figsize=(12, 6))
-plt.plot(dates, spotRates, label='Actual Spot Rates', color='navy')
-plt.plot(dates, encodedSpotRates, label='Predicted Spot Rates', color='yellowgreen', linewidth=0.7)
+%matplotlib notebook
+for i, column in enumerate(logReturns.columns):
+    plt.figure(figsize=(12, 6))
+    plt.plot(dates[1:], logReturns[column], label=f'Actual Log Returns {column}', color='navy')
+    plt.plot(dates[1:], encodedLogReturns[:, i], label=f'Predicted Log Returns {column}', color='yellowgreen', linewidth=1, linestyle='--')
 
-anomalyDates = dates.iloc[anomalies]
-anomalyVals = pd.DataFrame(spotRates).values[anomalies, 0]
-plt.scatter(anomalyDates, anomalyVals, label='Anomalies', color='red', marker='o')
-
-plt.xlabel('Date')
-plt.ylabel('Spot Rate')
-plt.legend()
-plt.title(f'Spot Rate Anomaly Detection for {currency}')
-plt.grid()
-plt.show()
-
-print("Number of anomalies:", len(anomalies))
-
+    anomalyDates = dates[1:].iloc[anomalies]
+    anomalyVals = encodedLogReturns[:, i][anomalies]
+    plt.scatter(anomalyDates, anomalyVals, label='Anomalies', color='red', marker='o', s=50, edgecolors='black', linewidth=1.5)
+    
+    plt.title(f'Actual vs Predicted Log Returns {column} Over Time')
+    plt.xlabel('Date')
+    plt.ylabel('Log Return')
+    plt.legend()
+    plt.grid()
+    plt.show()
+    
+    print("Number of anomalies:", len(anomalies))
+    
 plt.figure(figsize=(12, 6))
 plt.plot(history.history['loss'], label='Training Loss', color='mediumpurple')
 plt.plot(history.history['val_loss'], label='Validation Loss', color='red')
@@ -75,5 +82,5 @@ plt.legend()
 plt.grid(True)
 plt.show()
 
-last_loss = history.history['loss'][-1]
-print(f"Last training loss: {last_loss}")
+lastLoss = history.history['loss'][-1]
+print(f"Last training loss: {lastLoss}")
