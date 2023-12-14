@@ -1,0 +1,86 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+import time
+from sklearn.preprocessing import MinMaxScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv1D, MaxPooling1D, Flatten, Dense
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import EarlyStopping
+
+data = pd.read_excel("C:\\Users\\User\\OneDrive\\Documents\\Notes\\Year 3\\GP\\data1.xlsx")
+currency = 'GBP'
+filteredData = data[data['Currency'] == currency]
+dates = filteredData['Date']
+rates = filteredData.loc[:, 'Spot Rate':'10Y Rate']
+
+logReturns = np.log(rates / rates.shift(1)).dropna()
+scaler = MinMaxScaler()
+logReturnsNormalized = scaler.fit_transform(logReturns)
+logReturnsNormalized = logReturnsNormalized.reshape(logReturnsNormalized.shape[0], logReturnsNormalized.shape[1], 1)
+
+model = Sequential()
+model.add(Conv1D(filters=32, kernel_size=3, activation='relu', input_shape=(logReturnsNormalized.shape[1], 1)))
+model.add(MaxPooling1D(pool_size=2))
+model.add(Flatten())
+model.add(Dense(units=16, activation='relu'))
+model.add(Dense(units=logReturnsNormalized.shape[1], activation='sigmoid'))
+
+model.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
+model.summary()
+
+earlyStop = EarlyStopping(
+    monitor='val_loss',
+    patience=50,
+    restore_best_weights=True
+)
+
+startTime = time.time()
+history = model.fit(logReturnsNormalized, logReturnsNormalized, epochs=1000, batch_size=256, shuffle=False,
+                    validation_split=0.2, callbacks=earlyStop)
+endTime = time.time()
+
+encodedLogReturnsNormalized = model.predict(logReturnsNormalized)
+reconstructionErrors = np.mean(np.square(logReturnsNormalized.squeeze() - encodedLogReturnsNormalized.squeeze()), axis=1)
+
+meanError = np.mean(reconstructionErrors)
+threshold = meanError + 2 * np.std(reconstructionErrors)
+anomalies = np.where(reconstructionErrors > threshold)[0]
+
+elapsedTime = endTime - startTime
+print(f"Training Time: {elapsedTime} seconds")
+
+%matplotlib notebook
+
+for i, column in enumerate(logReturns.columns):
+    plt.figure(figsize=(12, 6))
+    plt.plot(dates[1:], logReturns[column], label=f'Actual Log Returns {column}', color='navy')
+    plt.plot(dates[1:], scaler.inverse_transform(encodedLogReturnsNormalized)[:, i], 
+             label=f'Predicted Log Returns {column}', color='yellowgreen', linewidth=1, linestyle='--')
+
+    anomalyDates = dates[1:].iloc[anomalies]
+    anomalyVals = scaler.inverse_transform(encodedLogReturnsNormalized)[:, i][anomalies]
+    plt.scatter(anomalyDates, anomalyVals, label='Anomalies', color='red', marker='o', s=50, edgecolors='black', linewidth=1.5)
+    
+    plt.title(f'Actual vs Predicted Log Returns {column} Over Time')
+    plt.xlabel('Date')
+    plt.ylabel('Log Return')
+    plt.legend()
+    plt.grid()
+    plt.show()
+    
+    print("Number of anomalies:", len(anomalies))
+
+    
+plt.figure(figsize=(12, 6))
+plt.plot(history.history['loss'], label='Training Loss', color='mediumpurple')
+plt.plot(history.history['val_loss'], label='Validation Loss', color='red')
+plt.title('Training and Validation Loss')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+lastLoss = history.history['loss'][-1]
+print(f"Last training loss: {lastLoss}")
