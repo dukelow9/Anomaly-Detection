@@ -4,7 +4,7 @@ from scipy.stats import zscore
 import time
 
 # Replace "YOUR_API_KEY" with your actual OpenAI API key
-openai.api_key = "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"
+openai.api_key = ""
 
 def detect_anomalies_and_describe(query, file_path, threshold=3.0):
     # Load time series data from the CSV file
