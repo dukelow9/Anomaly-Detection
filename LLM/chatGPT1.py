@@ -3,7 +3,7 @@ import openai
 import pandas as pd
 
 # Replace "YOUR_API_KEY" with your actual OpenAI API key
-openai.api_key = "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"
+openai.api_key = ""
 
 def detect_anomalies(query, file_path):
     # Load the first 100 rows of time series data from the CSV file
