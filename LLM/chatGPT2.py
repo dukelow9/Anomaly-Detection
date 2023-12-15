@@ -3,14 +3,13 @@ import pandas as pd
 from scipy.stats import zscore
 import time
 
-# Replace "YOUR_API_KEY" with your actual OpenAI API key
 openai.api_key = ""
 
 def detect_anomalies_and_describe(query, file_path, threshold=3.0):
     # Load time series data from the CSV file
     data = pd.read_csv(file_path, skiprows=range(0,0), nrows=100)
 
-    # Assuming your time series data has a 'timestamp' and a 'value' column
+    # Assuming the time series data has a 'timestamp' and a 'value' column
     # Adjust the column names accordingly based on your actual data
     timestamp_col = 'Date'
     value_col = 'Spot Rate'
