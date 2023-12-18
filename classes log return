@@ -1,0 +1,24 @@
+class log_returns():
+    def __init__(self, currencyOfInterest, Rate, log_gap, file_name):
+        df = pd.read_csv(file_name)
+        dataOI = df[df['Currency']==currencyOfInterest]
+        dates = pd.to_datetime(dataOI['Date'])
+        spotRates = dataOI[Rate]
+        self.log_returns = np.log(spotRates.shift(log_gap)/spotRates)
+        self.dates_log = dates.shift(log_gap)
+        self.log_gap = log_gap
+    
+    def plotting(self):
+        plt.ylabel("Log return")
+        plt.xlabel("date")
+        string = "Log return with "+ str(self.log_gap)+ " day break"
+        plt.title(string)
+        plt.plot(self.dates_log,self.log_returns)
+
+
+currencyOfInterest = 'GBP'
+Rate = "Spot Rate"
+file_name = #insert your file name here
+log_gap = 1
+LOG_RET = log_returns(currencyOfInterest, Rate, log_gap, file_name)
+LOG_RET.plotting()
