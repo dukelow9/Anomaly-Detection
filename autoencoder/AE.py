@@ -20,11 +20,14 @@ scaler = MinMaxScaler()
 logReturnsNormalized = scaler.fit_transform(logReturns)
 
 inputDim = logReturnsNormalized.shape[1]
-encodingDim = 4
 inputLayer = Input(shape=(inputDim,))
-encoded = Dense(encodingDim, activation='relu')(inputLayer)
-encoded = Dropout(0.02, name='dropout_layer')(encoded)
-decoded = Dense(inputDim, activation='sigmoid')(encoded)
+dropoutLayer = Dropout(0.02, name='dropout_layer')(inputLayer)
+encoded = Dense(8, activation='relu')(dropoutLayer)
+encoded = Dense(4, activation='relu')(encoded)
+encoded = Dense(2, activation='relu')(encoded)
+decoded = Dense(4, activation='relu')(encoded)
+decoded = Dense(8, activation='relu')(encoded)
+decoded = Dense(inputDim, activation='linear')(decoded)
 
 autoencoder = Model(inputLayer, decoded)
 autoencoder.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
@@ -46,8 +49,8 @@ encodedLogReturns = scaler.inverse_transform(encodedLogReturnsNormalized)
 
 reconstructionErrors = np.mean(np.square(logReturnsNormalized - encodedLogReturnsNormalized), axis=1)
 
-mean_error = np.mean(reconstructionErrors)
-threshold = mean_error + 2 * np.std(reconstructionErrors)
+meanError = np.mean(reconstructionErrors)
+threshold = meanError + 3 * np.std(reconstructionErrors)
 anomalies = np.where(reconstructionErrors > threshold)[0]
 
 elapsedTime = endTIme - startTime
