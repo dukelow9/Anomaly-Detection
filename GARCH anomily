@@ -1,0 +1,69 @@
+import math
+from statistics import mean 
+import matplotlib.pyplot as plt
+import seaborn as sns
+import scipy
+import numpy as np
+
+def random(Sigma):
+        u1 = np.random.uniform(size=1)
+        u2 = np.random.uniform(size=1)
+        R_sq = -2 * np.log(u1)
+        theta = 2 * np.pi * u2
+        Variance = 1
+        mean = 0
+        X_i = (((np.sqrt(R_sq) * np.cos(theta))*Variance)+mean)*Sigma
+        return X_i
+
+def GARCH(a_0,a_1,b_1):
+    Sigma = 1
+    X = []
+    no_reps = 5000
+    for i in range(no_reps):
+        X_i = random(Sigma)
+        #print(X_i)
+        Sigma_squared = a_0 + (a_1*X_i*X_i) + b_1*Sigma*Sigma
+        Sigma = np.sqrt(Sigma_squared)
+        X.append(X_i)
+        #print(i)
+    return(X)
+
+a0 = 1
+a1 = 0.05
+b1 = 0.5
+Sliding_window = 50
+
+def OUTLYER_GARCH(a0, a1, b1, Sliding_window):
+    X = GARCH(a0,a1,b1)
+    Anom = []
+    no_SD = 3
+    for i in range(len(X)-Sliding_window):
+        Window = []
+        for j in range(Sliding_window):
+            Window.append(X[i+j])
+        STANDARD = np.std(Window)
+        MEAN = np.mean(Window)
+        plt.scatter(i+Sliding_window,MEAN+(no_SD*STANDARD),marker = 's',color='green')
+        plt.scatter(i+Sliding_window,MEAN-(no_SD*STANDARD),marker = 's',color='green')
+        if X[i+Sliding_window] > MEAN+(no_SD*STANDARD):
+            Anom.append(i+Sliding_window)
+            plt.scatter(i+Sliding_window,X[i+Sliding_window],marker = 'x',color='red')
+        if X[i+Sliding_window] < MEAN-(no_SD*STANDARD):
+            Anom.append(i+Sliding_window)
+            plt.scatter(i+Sliding_window,X[i+Sliding_window],marker = 'x',color='red')
+        if X[i+Sliding_window] == 0:
+            Anom.append(i+Sliding_window)
+            plt.scatter(i+Sliding_window,X[i+Sliding_window],marker = 'x',color='red')
+    plt.ylabel("Log return")
+    plt.xlabel("date number")
+    plt.title("GARCH outlyers using a0="+ str(a0) +", a1="+ str(a1) +" and b1="+ str(b1))
+    plt.plot(X)
+    plt.show
+    return(Anom)
+
+Anom_len = []
+for i in range(30):
+    Anom = OUTLYER_GARCH(a0, a1, b1, i+40)
+    Anom_len.append(len(Anom))
+plt.show()
+plt.plot(Anom_len)
