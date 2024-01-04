@@ -1,0 +1,137 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from statsmodels.graphics.tsaplots import plot_acf
+
+class log_returns_class():
+    def __init__(self, currencyOfInterest, Rate, log_gap, file_name):
+        df = pd.read_csv(file_name)
+        dataOI = df[df['Currency']==currencyOfInterest]
+        dates = pd.to_datetime(dataOI['Date'])
+        spotRates = dataOI[Rate]
+        self.log_returns = np.log(spotRates.shift(log_gap)/spotRates)
+        self.dates_log = dates.shift(log_gap)
+        self.log_gap = log_gap
+        self.spotRates = spotRates
+        
+    def plotting(self):
+        plt.ylabel("Log return")
+        plt.xlabel("date")
+        string = "Log return with "+ str(self.log_gap)+ " day break"
+        plt.title(string)
+        plt.plot(self.dates_log,self.log_returns)
+        
+    def autocorl_plot(self):
+        pd.plotting.lag_plot(self.spotRates, lag=1)
+        plt.show()
+        
+    def autocorl(self):
+        dataframe = pd.concat([self.spotRates.shift(0)])
+        for i in range(int(len(self.log_returns-1)*0.8)):
+            dataframe_new  = pd.concat([self.spotRates.shift(i+1)])
+            dataframe = pd.concat([dataframe, dataframe_new], axis=1)
+        result = dataframe.corr()
+        #print(result)
+        for i in range((int(len(self.log_returns-2)*0.8)-1)):
+            plt.scatter(i,result.iloc[i,0])
+        plt.show()
+
+    def autocorl_log(self):
+        dataframe = pd.concat([self.log_returns.shift(0)])
+        for i in range(int(len(self.log_returns-2)*0.8)):
+            dataframe_new  = pd.concat([self.log_returns.shift(i+1)])
+            dataframe = pd.concat([dataframe, dataframe_new], axis=1)
+        result = dataframe.corr()
+        #print(result)
+        for i in range((int(len(self.log_returns-2)*0.8)-1)):
+            plt.scatter(i,result.iloc[i,0])
+        plt.show()
+
+currencyOfInterest = 'GBP'
+Rate = "Spot Rate"
+file_name = "C:/Users/phbcat/OneDrive - Loughborough University/Group Project/Data/1128_1419_fx_tenor_curves_lboro_data_20231011.txt"
+log_gap = 1
+LOG_RET = log_returns_class(currencyOfInterest, Rate, log_gap, file_name)
+LOG_RET.plotting()
+
+def stats(currencyOfInterest, Rate, log_gap, file_name,sliding_size):
+    LOG_RET = log_returns_class(currencyOfInterest, Rate, log_gap, file_name)
+    log_returns = LOG_RET.log_returns
+    dates_log = LOG_RET.dates_log
+    Anom_log = []
+    for i in range(len(log_returns)-sliding_size):
+        window = []
+        for j in range(sliding_size):
+            window.append(log_returns.iloc[i+j])
+        MEAN = np.mean(window)
+        STANDARD = np.std(window)
+        if log_returns.iloc[i+sliding_size] > MEAN+(3*STANDARD):
+            Anom_log.append(dates_log.iloc[i+sliding_size])
+            #plt.scatter(dates_log.iloc[i+sliding_size],log_returns.iloc[i+sliding_size],marker = 'x',color='black')
+        if log_returns.iloc[i+sliding_size] < MEAN-(3*STANDARD):
+            Anom_log.append(dates_log.iloc[i+sliding_size])
+            #plt.scatter(dates_log.iloc[i+sliding_size],log_returns.iloc[i+sliding_size],marker = 'x',color='black')
+        if log_returns.iloc[i+sliding_size] == 0:
+            Anom_log.append(dates_log.iloc[i+sliding_size])
+            #plt.scatter(dates_log.iloc[i+sliding_size],log_returns.iloc[i+sliding_size],marker = 'x',color='black')
+        #plt.scatter(dates_log.iloc[i+sliding_size],MEAN+(2*STANDARD),marker = 's',color='green')
+        #plt.scatter(dates_log.iloc[i+sliding_size],MEAN-(2*STANDARD),marker = 's',color='green')
+    #plt.ylabel("Log return")
+    #plt.xlabel("date")
+    #plt.title(str(currencyOfInterest) +" "+ str(Rate))
+    #plt.plot(dates_log,log_returns)
+    #plt.show()
+    return(Anom_log)
+
+ANOM = stats(currencyOfInterest, Rate, log_gap, file_name,50)
+print(ANOM)
+
+#LOG_RET = log_returns_class(currencyOfInterest, Rate, 1, file_name)
+#log_returns = LOG_RET.log_returns
+#length = len(log_returns)
+for i in range(10):
+    ANOM = stats(currencyOfInterest, Rate, log_gap, file_name,i+15)
+    plt.scatter(i+15,len(ANOM))
+
+#LOG_RET = log_returns_class(currencyOfInterest, Rate, 1, file_name)
+#log_returns = LOG_RET.log_returns
+#length = len(log_returns)
+for i in range(10):
+    ANOM = stats(currencyOfInterest, Rate, i+15, file_name,50)
+    plt.scatter(i+15,len(ANOM))
+
+currencyOfInterest = 'GBP'
+Rate = "Spot Rate"
+file_name = "C:/Users/phbcat/OneDrive - Loughborough University/Group Project/Data/1128_1419_fx_tenor_curves_lboro_data_20231011.txt"
+log_gap = 1
+
+LOG_RET = log_returns_class(currencyOfInterest, Rate, log_gap, file_name)
+LOG_RET.autocorl_plot()
+LOG_RET.autocorl()
+#LOG_RET.plotting()
+
+LOG_RET.autocorl_log()
+
+currencyOfInterest = 'JPY'
+Rate = "Spot Rate"
+file_name = "C:/Users/phbcat/OneDrive - Loughborough University/Group Project/Data/1128_1419_fx_tenor_curves_lboro_data_20231011.txt"
+log_gap = 1
+
+LOG_RET = log_returns_class(currencyOfInterest, Rate, log_gap, file_name)
+#LOG_RET.plotting()
+LOG_RET.autocorl()
+LOG_RET.autocorl_plot()
+
+log_RETURN = []
+for i in range (len(LOG_RET.spotRates)):
+    log_RETURN.append(LOG_RET.spotRates.iloc[i])   
+plot_acf(log_RETURN,lags = len(LOG_RET.spotRates)-1)
+
+LOG_RET.spotRates.autocorr()
+#This is the code for the auto corrilation value,
+#distance, time frame
+LOG_RET = log_returns_class("BHD", Rate, log_gap, file_name)
+LOG_RET.spotRates.autocorr()
+
+LOG_RET = log_returns_class("AED", Rate, log_gap, file_name)
+LOG_RET.spotRates.autocorr()
