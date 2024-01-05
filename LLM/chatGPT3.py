@@ -3,7 +3,7 @@ import pandas as pd
 from scipy.stats import zscore
 import time
 
-openai.api_key = ""
+openai.api_key = "Insert API key here"
 
 def detect_anomalies_and_describe(query, file_path, threshold=3.0):
     # Load time series data from the CSV file
