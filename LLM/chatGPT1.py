@@ -9,7 +9,7 @@ def detect_anomalies(query, file_path):
     # Load the first 100 rows of time series data from the CSV file
     data = pd.read_csv(file_path, skiprows=range(0,0), nrows=1653)
 
-    # Assuming your time series data has a 'timestamp' and a 'value' column
+    # Assuming the time series data has a 'timestamp' and a 'value' column
     # Adjust the column names accordingly based on your actual data
     timestamp_col = 'Date'
     value_col = 'Spot Rate'
