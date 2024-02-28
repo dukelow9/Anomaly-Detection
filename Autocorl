@@ -2,6 +2,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from statsmodels.graphics.tsaplots import plot_acf
+from statsmodels.tsa.stattools import acf
+import statsmodels.api as sm
+import csv
 
 class log_returns_class():
     def __init__(self, currencyOfInterest, Rate, log_gap, file_name):
