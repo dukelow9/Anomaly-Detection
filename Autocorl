@@ -21,31 +21,16 @@ class log_returns_class():
         plt.title(string)
         plt.plot(self.dates_log,self.log_returns)
         
-    def autocorl_plot(self):
-        pd.plotting.lag_plot(self.spotRates, lag=1)
-        plt.show()
-        
-    def autocorl(self):
-        dataframe = pd.concat([self.spotRates.shift(0)])
-        for i in range(int(len(self.log_returns-1)*0.8)):
-            dataframe_new  = pd.concat([self.spotRates.shift(i+1)])
-            dataframe = pd.concat([dataframe, dataframe_new], axis=1)
-        result = dataframe.corr()
-        #print(result)
-        for i in range((int(len(self.log_returns-2)*0.8)-1)):
-            plt.scatter(i,result.iloc[i,0])
-        plt.show()
+    def autocorl_length(self):
+        acf,confidence_interval=sm.tsa.acf(self.spotRates,nlags=len(self.spotRates), alpha=0.05,fft=False)
+        lower_bound = confidence_interval[1:, 0] - acf[1:]
+        plt.plot(-lower_bound)
+        for i in range(len(acf)):
+            if (-lower_bound[i])>acf[i]:
+                self.AUTO_length = i
+                break
 
-    def autocorl_log(self):
-        dataframe = pd.concat([self.log_returns.shift(0)])
-        for i in range(int(len(self.log_returns-2)*0.8)):
-            dataframe_new  = pd.concat([self.log_returns.shift(i+1)])
-            dataframe = pd.concat([dataframe, dataframe_new], axis=1)
-        result = dataframe.corr()
-        #print(result)
-        for i in range((int(len(self.log_returns-2)*0.8)-1)):
-            plt.scatter(i,result.iloc[i,0])
-        plt.show()
+#This returns the autocorl length of the data returns as "self.AUTO_length"
 
 currencyOfInterest = 'GBP'
 Rate = "Spot Rate"
