@@ -4,7 +4,7 @@ class log_returns():
         dataOI = df[df['Currency']==currencyOfInterest]
         dates = pd.to_datetime(dataOI['Date'])
         spotRates = dataOI[Rate]
-        self.log_returns = np.log(spotRates.shift(log_gap)/spotRates)
+        self.log_returns = np.log(spotRates/spotRates.shift(log_gap)).dropna()
         self.dates_log = dates.shift(log_gap)
         self.log_gap = log_gap
     
