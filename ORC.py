@@ -10,6 +10,7 @@ from keras.layers import Dense
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import EarlyStopping
 
+#building custom ORC class
 class OpticalReservoir(tf.keras.layers.Layer):
     def __init__(self, transmissionMatrix, activation=None, *args, **kwargs):
         self.transmissionMatrix = transmissionMatrix
@@ -20,12 +21,14 @@ class OpticalReservoir(tf.keras.layers.Layer):
         output = tf.matmul(inputs, self.transmissionMatrix[:, :inputs.shape[-1]])
         return self._activation(output)
 
+#early stopping callback
 earlyStopping = EarlyStopping(
     monitor='val_loss',
     patience=25,
     restore_best_weights=True
 )
 
+#reading and filtering dataset
 data = pd.read_excel("C:\\Users\\User\\OneDrive\\Documents\\Notes\\Year 3\\GP\\data1_flagged.xlsx")
 currency = 'GBP'
 filteredData = data[data['Currency'] == currency]
@@ -33,15 +36,16 @@ dates = filteredData['Date']
 rates = filteredData.loc[:, 'Spot Rate':'10Y Rate']
 anomalyFlag = filteredData['Anomaly Flag']
 
+#log return calculation and normalisation
 logReturns = np.log(rates / rates.shift(1)).dropna()
-
 scaler = MinMaxScaler()
 logReturnsNormalized = scaler.fit_transform(logReturns)
 
 inputDim = logReturnsNormalized.shape[1]
-
 activation = tf.keras.activations.relu
 dim = inputDim
+
+#building transmission matrix
 transmissionMatrix = np.random.randn(dim, 100)/2 + 1j * np.random.randn(dim, 100)/2
 
 opticalReservoir = OpticalReservoir(transmissionMatrix=transmissionMatrix, activation=activation)
@@ -50,6 +54,7 @@ output = tf.keras.layers.Dense(inputDim, kernel_regularizer=tf.keras.regularizer
 
 optimizer = tf.keras.optimizers.Adam()
 
+#calling the custom class to initialize the model
 model = tf.keras.models.Sequential()
 model.add(tf.keras.layers.Dense(dim, activation='relu', input_shape=(None, inputDim)))
 model.add(opticalReservoir)
@@ -58,6 +63,7 @@ model.build(input_shape=(None, inputDim))
 model.compile(loss="mse", optimizer=optimizer)
 model.summary()
 
+#training with recorded time
 startTime = time.time()
 history = model.fit(logReturnsNormalized, logReturnsNormalized, epochs=2000, batch_size=256,
                     shuffle=False, validation_split=0.2, callbacks=[earlyStopping])
@@ -66,8 +72,8 @@ endTime = time.time()
 encodedLogReturnsNormalized = model.predict(logReturnsNormalized)
 encodedLogReturns = scaler.inverse_transform(encodedLogReturnsNormalized)
 
+#calculating errors and anomalies with set threshold
 reconstructionErrors = np.mean(np.square(logReturnsNormalized - encodedLogReturnsNormalized), axis=1)
-
 meanError = np.mean(reconstructionErrors)
 threshold = meanError + 6 * np.std(reconstructionErrors)
 anomalies = np.where(reconstructionErrors > threshold)[0]
@@ -75,6 +81,7 @@ anomalies = np.where(reconstructionErrors > threshold)[0]
 elapsedTime = endTime - startTime
 print(f"Training Time: {elapsedTime} seconds")
 
+#plotting actual and predicted data
 %matplotlib notebook
 for i, column in enumerate(logReturns.columns):
     plt.figure(figsize=(12, 6))
@@ -93,7 +100,8 @@ for i, column in enumerate(logReturns.columns):
     plt.show()
     
     print("Number of anomalies:", len(anomalies))
-    
+
+#plotting loss curves
 plt.figure(figsize=(12, 6))
 plt.plot(history.history['loss'], label='Training Loss', color='mediumpurple')
 plt.plot(history.history['val_loss'], label='Validation Loss', color='red')
@@ -109,6 +117,7 @@ print(f"Last training loss: {lastLoss}")
 
 from sklearn.metrics import roc_auc_score, roc_curve
 
+#plotting ROC curve
 minLength = min(len(dates[1:]), len(logReturns), len(encodedLogReturns))
 trueLabels = anomalyFlag[1: minLength + 1]
 ROCAUC = roc_auc_score(trueLabels, reconstructionErrors)
