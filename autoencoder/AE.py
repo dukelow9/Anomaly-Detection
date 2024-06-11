@@ -8,19 +8,22 @@ from tensorflow.keras.layers import Input, Dense, Dropout
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import EarlyStopping
 
+#reading dataset
 data = pd.read_excel("C:\\Users\\User\\OneDrive\\Documents\\Notes\\Year 3\\GP\\data1_flagged.xlsx")
 
+#filtering the wanted columns and setting up the dimensions
 currency = 'GBP'
 filteredData = data[data['Currency'] == currency]
 dates = filteredData['Date']
 rates = filteredData.loc[:, 'Spot Rate':'10Y Rate']
 anomalyFlag = filteredData['Anomaly Flag']
 
+#calculating log returns and normalising
 logReturns = np.log(rates / rates.shift(1)).dropna()
-
 scaler = MinMaxScaler()
 logReturnsNormalized = scaler.fit_transform(logReturns)
 
+#building autoencoder model layers
 inputDim = logReturnsNormalized.shape[1]
 inputLayer = Input(shape=(inputDim,))
 dropoutLayer = Dropout(0.2, name='dropout_layer')(inputLayer)
@@ -35,12 +38,14 @@ autoencoder = Model(inputLayer, decoded)
 autoencoder.compile(optimizer=Adam(), loss='mse')
 autoencoder.summary()
 
+#esrly stopping callback
 earlyStop = EarlyStopping(
     monitor='val_loss',
     patience=50,
     restore_best_weights=True
 )
 
+#model training with recorded time
 startTime = time.time()
 
 history = autoencoder.fit(logReturnsNormalized, logReturnsNormalized, epochs=1000, batch_size=256, shuffle=False,
@@ -50,8 +55,8 @@ endTime = time.time()
 encodedLogReturnsNormalized = autoencoder.predict(logReturnsNormalized)
 encodedLogReturns = scaler.inverse_transform(encodedLogReturnsNormalized)
 
+#calculating errors and anomalies with set threshold
 reconstructionErrors = np.mean(np.square(logReturnsNormalized - encodedLogReturnsNormalized), axis=1)
-
 meanError = np.mean(reconstructionErrors)
 threshold = meanError + 6 * np.std(reconstructionErrors)
 anomalies = np.where(reconstructionErrors > threshold)[0]
@@ -59,6 +64,7 @@ anomalies = np.where(reconstructionErrors > threshold)[0]
 elapsedTime = endTime - startTime
 print(f"Training Time: {elapsedTime} seconds")
 
+#plotting the actual and predicted data
 minLength = min(len(dates[1:]), len(logReturns), len(encodedLogReturns))
 
 %matplotlib notebook
@@ -82,6 +88,7 @@ for i, column in enumerate(logReturns.columns):
     
     print("Number of anomalies:", len(anomalies))
     
+#plotting the loss curves    
 plt.figure(figsize=(12, 6))
 plt.plot(history.history['loss'], label='Training Loss', color='mediumpurple')
 plt.plot(history.history['val_loss'], label='Validation Loss', color='red')
@@ -97,6 +104,7 @@ print(f"Last training loss: {lastLoss}")
 
 from sklearn.metrics import roc_auc_score, roc_curve
 
+#plotting the ROC curve
 minLength = min(len(dates[1:]), len(logReturns), len(encodedLogReturns))
 trueLabels = anomalyFlag[1: minLength + 1]
 ROCAUC = roc_auc_score(trueLabels, reconstructionErrors)
